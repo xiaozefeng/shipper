@@ -1,5 +1,5 @@
 build:
-	protoc -I. --go_out=plugins=micro:$(HOME)/github.com/go/microservice/consignment-service proto/consignment/*.proto
+	protoc -I. --go_out=plugins=micro:$(HOME)/github.com/go/shipper/consignment-service proto/consignment/*.proto
 	GOOS=linux GOARCH=amd64 go build
 	docker build -t consignment-service .
 

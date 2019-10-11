@@ -1,5 +1,7 @@
-build:
+generate:
 	protoc -I. --go_out=plugins=micro:$(HOME)/github.com/go/shipper/consignment-service proto/consignment/*.proto
+
+build:generate
 	GOOS=linux GOARCH=amd64 go build
 	docker build -t consignment-service .
 

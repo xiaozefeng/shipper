@@ -4,34 +4,56 @@ import (
 	"fmt"
 	"github.com/micro/go-micro"
 	pb "github.com/xiaozefeng/shipper/consignment-service/proto/consignment"
+	vesselProto "github.com/xiaozefeng/shipper/vessel-service/proto/vessel"
 	"golang.org/x/net/context"
+	"log"
 )
-type IRepository interface {
+
+type Repository interface {
 	Create(consignment *pb.Consignment) (*pb.Consignment, error)
 	GetAll() []*pb.Consignment
 }
-type Repository struct {
+type ConsignmentRepository struct {
 	consignments []*pb.Consignment
 }
 
-func (repo *Repository) Create(consignment *pb.Consignment) (*pb.Consignment, error) {
+func (repo *ConsignmentRepository) Create(consignment *pb.Consignment) (*pb.Consignment, error) {
 	repo.consignments = append(repo.consignments, consignment)
 	return consignment, nil
 }
 
-func (repo *Repository) GetAll() []*pb.Consignment {
+func (repo *ConsignmentRepository) GetAll() []*pb.Consignment {
 	return repo.consignments
 }
 
 type service struct {
-	repo IRepository
+	repo         Repository
+	vesselClient vesselProto.VesselServiceClient
 }
 
 func (s *service) CreateConsignment(ctx context.Context, req *pb.Consignment, res *pb.Response) error {
+	// Here we call a client instance of out vessel service with our consignment weight
+	// and the amount of containers as the capacity value
+	vesselResp, err := s.vesselClient.FindAvailable(context.Background(), &vesselProto.Specification{
+		MaxWeight: req.Weight,
+		Capacity:  int32(len(req.Containers)),
+	})
+	if err != nil {
+		return err
+	}
+	log.Printf("Found vessel: %s \n", vesselResp.Vessel.Name)
+	// We set the VesselId as the vessel we got back from our
+	// vessel service
+	req.VesselId = vesselResp.Vessel.Id
+
+	// save our consignment
 	consignment, err := s.repo.Create(req)
 	if err != nil {
 		return err
 	}
+
+	// Return matching the `Response` message we created in our
+	// protobuf definition
 	res.Created = true
 	res.Consignment = consignment
 	return nil
@@ -58,7 +80,7 @@ func (s *service) GetConsignments(ctx context.Context, req *pb.GetRequest, res *
 //}
 
 func main() {
-	repo := &Repository{}
+	repo := &ConsignmentRepository{}
 
 	// Create a new service.
 	// Optionally include some options here.
@@ -68,11 +90,13 @@ func main() {
 		micro.Version("latest"),
 	)
 
+	vesselClient := vesselProto.NewVesselServiceClient("go.micro.srv.vessel", srv.Client())
+
 	// 	Init will parse the command line flags
 	srv.Init()
 
 	// Register handler
-	pb.RegisterShippingServiceHandler(srv.Server(), &service{repo})
+	pb.RegisterShippingServiceHandler(srv.Server(), &service{repo: repo, vesselClient: vesselClient})
 
 	// Run the server
 	if err := srv.Run(); err != nil {

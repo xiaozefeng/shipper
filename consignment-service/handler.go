@@ -40,8 +40,8 @@ func (s *service) CreateConsignment(ctx context.Context, req *pb.Consignment, re
 	return nil
 }
 
-func (s *service) GetConsignments(ctx context.Context, req *pb.GetRequest,resp *pb.Response) error {
-	repo:= s.GetRepo()
+func (s *service) GetConsignments(ctx context.Context, req *pb.GetRequest, resp *pb.Response) error {
+	repo := s.GetRepo()
 	defer repo.Close()
 
 	consignments, err := repo.GetAll()

@@ -11,4 +11,4 @@ run:
 	 -e micro_registry=mdns consignment-service
 
 clean:
-	rm -rf consignment-service
+	rm -f consignment-service
